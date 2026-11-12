@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+@theme {
+  --color-wine-950: #1c0d10;
+  --color-wine-900: #2a1418;
+  --color-wine-800: #3f1621;
+  --color-wine-700: #5c1a2b;
+  --color-wine-600: #7a2236;
+  --color-wine-500: #9b2f46;
+  --color-gold-500: #c98d22;
+  --color-gold-400: #e0a83c;
+  --color-gold-300: #f0c56a;
+  --color-cream-100: #fbf6ec;
+  --color-cream-200: #f5ecd9;
+  --color-cream-300: #e6d8bc;
+  --color-ink-950: #121214;
+  --color-ink-900: #19191c;
+  --color-ink-800: #232327;
+  --color-ink-700: #2f2f35;
+  --color-ink-600: #44444c;
+  --color-lake-500: #3f6f7a;
+  --color-ok-500: #4f9a5f;
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--color-ink-950);
+    color: var(--color-cream-200);
+    font-family: var(--font-sans);
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  body {
+    min-height: 100dvh;
+  }
+  button {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@layer components {
+  .card-surface {
+    background: linear-gradient(160deg, var(--color-ink-800), var(--color-ink-900));
+    border: 1px solid color-mix(in srgb, var(--color-gold-400) 14%, transparent);
+    border-radius: 1.25rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 3.25rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 1rem;
+    font-weight: 600;
+    transition: transform 0.12s, opacity 0.2s, background-color 0.2s;
+  }
+  .btn:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+  .btn:disabled {
+    opacity: 0.4;
+  }
+  .btn-gold {
+    background: linear-gradient(180deg, var(--color-gold-300), var(--color-gold-500));
+    color: var(--color-wine-950);
+  }
+  .btn-wine {
+    background: var(--color-wine-600);
+    color: var(--color-cream-100);
+  }
+  .btn-ghost {
+    background: var(--color-ink-700);
+    color: var(--color-cream-200);
+  }
+  .field {
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+    border-radius: 1rem;
+    background: var(--color-ink-800);
+    border: 1px solid var(--color-ink-600);
+    color: var(--color-cream-100);
+    font-size: 1.05rem;
+  }
+  .field:focus {
+    outline: 2px solid var(--color-gold-400);
+    outline-offset: 1px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

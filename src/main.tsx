@@ -1,0 +1,15 @@
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import gsap from 'gsap'
+import { useGSAP } from '@gsap/react'
+import App from './App'
+import './index.css'
+
+gsap.registerPlugin(useGSAP)
+gsap.defaults({ ease: 'power2.out', duration: 0.5 })
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
