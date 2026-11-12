@@ -3,7 +3,6 @@ import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import Hero from '../components/Hero'
 import { api, errorText } from '../lib/api'
-import { demoAdminPin } from '../lib/demoApi'
 import type { PlayerPublic, Session } from '../lib/types'
 
 export default function Login({ onLogin }: { onLogin: (s: Session) => void }) {
@@ -88,13 +87,9 @@ export default function Login({ onLogin }: { onLogin: (s: Session) => void }) {
           </button>
         </div>
 
-        {api.mode === 'demo' && (
-          <p className="login-item rounded-2xl border border-dashed border-gold-400/30 p-4 text-xs leading-relaxed text-cream-300/80">
-            <strong className="text-gold-300">Demo-Modus</strong> – keine Supabase-Verbindung konfiguriert, alle Daten
-            liegen nur in diesem Browser. Admin-PIN für <em>Simon</em>:{' '}
-            <code className="font-mono text-gold-300">{demoAdminPin()}</code>
-          </p>
-        )}
+        <p className="login-item px-2 text-center text-xs leading-relaxed text-cream-300/60">
+          Deinen PIN bekommst du von Simon. 🤫
+        </p>
       </form>
     </div>
   )

@@ -91,7 +91,6 @@ export interface AdminOverview {
 }
 
 export interface Api {
-  mode: 'supabase' | 'demo'
   listPlayers(): Promise<PlayerPublic[]>
   login(playerId: number, pin: string): Promise<Session>
   logout(token: string): Promise<void>

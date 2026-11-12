@@ -1,11 +1,7 @@
-import { createDemoApi } from './demoApi'
-import { createSupabaseApi } from './supabaseApi'
+import { createHttpApi } from './httpApi'
 import type { Api } from './types'
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-
-export const api: Api = url && key ? createSupabaseApi(url, key) : createDemoApi()
+export const api: Api = createHttpApi()
 
 export const LEVELS = {
   1: { label: 'Leicht', points: 1 },

@@ -4,4 +4,8 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  server: {
+    // Im Entwicklungsmodus gehen API-Aufrufe an den eigenen Server
+    proxy: { '/api': { target: 'http://localhost:8787', changeOrigin: false } },
+  },
 })
