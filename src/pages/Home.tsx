@@ -1,13 +1,15 @@
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import Hero from '../components/Hero'
+import { AnnounceModal, AnnouncementBanner } from '../components/Announcement'
 import type { PageProps } from '../App'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
-export default function Home({ state, onLogout, onAdmin }: PageProps & { onLogout: () => void; onAdmin: () => void }) {
+export default function Home({ token, state, refresh, onLogout, onAdmin }: PageProps & { onLogout: () => void; onAdmin: () => void }) {
   const listRef = useRef<HTMLOListElement>(null)
+  const [announcing, setAnnouncing] = useState(false)
   const board = state.leaderboard
   const signature = board.map((r) => `${r.id}:${r.points}`).join('|')
 
@@ -32,22 +34,23 @@ export default function Home({ state, onLogout, onAdmin }: PageProps & { onLogou
         <p className="mt-1 text-sm text-cream-200/85">Servus, <strong className="text-gold-300">{state.me.name}</strong>!</p>
       </Hero>
 
-      {state.settings.announcement && (
-        <div className="mx-5 mt-4 flex gap-3 rounded-2xl border border-gold-400/40 bg-gold-400/10 p-4" role="status">
-          <span className="text-2xl leading-none">📣</span>
-          <p className="text-[15px] leading-snug font-medium whitespace-pre-line text-cream-100">{state.settings.announcement}</p>
-        </div>
-      )}
+      <AnnouncementBanner settings={state.settings} />
       {state.settings.paused && (
         <p className="mx-5 mt-3 rounded-2xl bg-ink-800 px-4 py-3 text-center text-sm text-cream-200">⏸️ Das Ziehen ist gerade pausiert.</p>
       )}
 
-      <div className="flex gap-2 px-5 pt-4">
+      <div className="flex flex-wrap gap-2 px-5 pt-4">
+        {state.me.canAnnounce && (
+          <button onClick={() => setAnnouncing(true)} className="btn btn-gold w-full text-sm">📣 Ansage an alle machen</button>
+        )}
         {state.me.isAdmin && (
           <button onClick={onAdmin} className="btn btn-wine flex-1 text-sm">⚙️ Admin-Bereich</button>
         )}
         <button onClick={onLogout} className="btn btn-ghost flex-1 text-sm">Abmelden</button>
       </div>
+      {announcing && (
+        <AnnounceModal token={token} settings={state.settings} onClose={() => setAnnouncing(false)} onDone={refresh} />
+      )}
 
       <section className="px-5 pt-6">
         <div className="mb-3 flex items-baseline justify-between">

@@ -84,6 +84,8 @@ const routes: Record<string, Handler> = {
   'POST /api/admin/return-card': (t, b) => game.adminReturnCard(t, num(b.cardId)),
   'POST /api/admin/delete-player': (t, b) => game.adminDeletePlayer(t, num(b.playerId)),
   'POST /api/admin/reset-game': (t) => game.adminResetGame(t),
+  'POST /api/admin/announcer': (t, b) => game.adminSetAnnouncer(t, num(b.playerId), b.allowed === true),
+  'POST /api/announce': (t, b) => game.announce(t, String(b.text ?? '')),
 }
 
 async function handleApi(req: IncomingMessage, res: ServerResponse, path: string) {

@@ -57,8 +57,16 @@ Wichtig: nur **eine** Instanz betreiben (SQLite-Datei + Live-Updates im Speicher
 ## Admin-Bereich (nur Simon)
 
 - **Spielsteuerung:** Karten pro Tag (0–10), Ziehen pausieren/erlauben, Ansage an alle (Startseite).
-- **Spieler** (antippen): Extra-Karten geben (+1/+2/+3) oder wegnehmen (−1), Tageslimit zurücksetzen,
-  neuen PIN erzeugen, Spieler entfernen. Neue Spieler anlegen, PINs anzeigen.
+- **Spieler** (antippen): Extra-Karten geben (+1/+2/+3) oder wegnehmen (−1), Ansage-Recht ein/aus,
+  Tageslimit zurücksetzen, neuen PIN erzeugen, Spieler entfernen. Neue Spieler anlegen, PINs anzeigen.
+
+## Ansagen an alle
+
+- Dürfen: Admin immer, außerdem freigeschaltete Spieler (📣 in der Spielerliste).
+  Beim allerersten Start werden **Mario, Stefan und Andi** freigeschaltet (`DEFAULT_ANNOUNCERS` in
+  `server/db.ts`), danach nur noch über den Admin-Bereich änderbar.
+- Knopf „📣 Ansage an alle machen“ auf der Startseite. Die Ansage erscheint bei allen sofort,
+  immer mit Absender und Uhrzeit („— Mario · Fr., 20:15“). Eine neue Ansage ersetzt die alte.
 - **Missionen:** alle Karten mit Status; wartende Bestätigungen stellvertretend bestätigen/ablehnen;
   laufende Karten zurück in den Stapel legen (Ziehung wird erstattet).
 - **Gefahrenzone:** Spiel komplett zurücksetzen (Bestätigungswort `NEU`): alle Karten zurück und neu
@@ -79,7 +87,8 @@ Wichtig: nur **eine** Instanz betreiben (SQLite-Datei + Live-Updates im Speicher
 | POST | `/api/login` | `{playerId, pin}` → `{token, player}` |
 | GET | `/api/state` | Rangliste, eigene Karten, Ziehungen, offene Bestätigungen |
 | POST | `/api/draw` · `/api/report` · `/api/give-up` · `/api/resolve` | Spielaktionen |
-| GET/POST | `/api/admin/*` | `overview`, `players`, `reset-pin`, `reset-draws`, `settings`, `give-extra`, `resolve`, `return-card`, `delete-player`, `reset-game` |
+| POST | `/api/announce` | `{text}` Ansage an alle (Admin + freigeschaltete Spieler; leer = entfernen) |
+| GET/POST | `/api/admin/*` | `announcer`, `overview`, `players`, `reset-pin`, `reset-draws`, `settings`, `give-extra`, `resolve`, `return-card`, `delete-player`, `reset-game` |
 | GET | `/api/events` | Server-Sent Events bei jeder Änderung |
 
 Authentifizierung: `Authorization: Bearer <token>`.

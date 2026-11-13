@@ -10,6 +10,8 @@ import { randomInt } from 'node:crypto'
 import { MISSIONS, PLAYER_NAMES } from '../src/lib/missions.ts'
 
 const ADMIN_PIN = '1413'
+/** Spieler, die von Anfang an Ansagen machen dürfen */
+const DEFAULT_ANNOUNCERS = ['Mario', 'Stefan', 'Andi']
 
 export const randomPin =() => String(randomInt(0, 10000)).padStart(4, '0')
 
@@ -70,6 +72,7 @@ export function openDb(dataDir: string): DatabaseSync {
   }
   addColumn('players', 'extra_draws', 'extra_draws INTEGER NOT NULL DEFAULT 0')
   addColumn('assignments', 'is_extra', 'is_extra INTEGER NOT NULL DEFAULT 0')
+  addColumn('players', 'can_announce', 'can_announce INTEGER NOT NULL DEFAULT 0')
 
   const upsertMission = db.prepare(`
     INSERT INTO missions (id, level, title, description) VALUES (?, ?, ?, ?)
@@ -80,6 +83,15 @@ export function openDb(dataDir: string): DatabaseSync {
   if (n === 0) {
     const insert = db.prepare('INSERT INTO players (name, pin, is_admin) VALUES (?, ?, ?)')
     PLAYER_NAMES.forEach((name, i) => insert.run(name, randomPin(), i === 0 ? 1 : 0))
+  }
+
+  // Einmalig (nachdem die Spieler existieren): Standard-Ansager freischalten.
+  // Danach nur noch über den Admin-Bereich änderbar.
+  const seeded = db.prepare("SELECT 1 FROM settings WHERE key = 'announcers_seeded'").get()
+  if (!seeded) {
+    const allow = db.prepare('UPDATE players SET can_announce = 1 WHERE name = ?')
+    for (const name of DEFAULT_ANNOUNCERS) allow.run(name)
+    db.prepare("INSERT INTO settings (key, value) VALUES ('announcers_seeded', '1')").run()
   }
 
   // Admin (Simon) hat einen festen PIN – wird bei jedem Start gesetzt.

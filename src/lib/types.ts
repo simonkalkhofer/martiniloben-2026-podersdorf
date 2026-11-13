@@ -11,6 +11,8 @@ export interface PlayerPublic {
 
 export interface Me extends PlayerPublic {
   isAdmin: boolean
+  /** darf Ansagen an alle machen (Admin immer) */
+  canAnnounce: boolean
 }
 
 export interface Session {
@@ -31,6 +33,9 @@ export interface Settings {
   drawsPerDay: number
   paused: boolean
   announcement: string
+  /** Name dessen, der die Ansage gemacht hat */
+  announcementBy: string
+  announcementAt: string | null
 }
 
 export interface LeaderRow {
@@ -124,6 +129,10 @@ export interface Api {
   /** Aktive/wartende Karte zurück in den Stapel (Ziehung wird erstattet) */
   adminReturnCard(token: string, cardId: number): Promise<void>
   adminDeletePlayer(token: string, playerId: number): Promise<void>
+  /** Ansage-Recht für einen Spieler ein-/ausschalten */
+  adminSetAnnouncer(token: string, playerId: number, allowed: boolean): Promise<void>
+  /** Ansage an alle setzen (leer = entfernen); für Admin und freigeschaltete Spieler */
+  announce(token: string, text: string): Promise<void>
   /** Neues Spiel: alle Karten zurück, Punkte auf 0, Spieler + PINs bleiben */
   adminResetGame(token: string): Promise<void>
   /** Ruft cb auf, sobald sich irgendwo im Spiel etwas ändert. */

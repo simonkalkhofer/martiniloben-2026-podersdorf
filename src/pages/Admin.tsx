@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { useGSAP } from '@gsap/react'
 import Modal from '../components/Modal'
+import { AnnounceModal } from '../components/Announcement'
 import { useToast } from '../components/Toast'
 import { api, errorText, LEVELS } from '../lib/api'
 import type { AdminOverview, AdminPlayer, CardStatus } from '../lib/types'
@@ -19,7 +20,7 @@ const RESET_WORD = 'NEU'
 type Filter = 'all' | 'open' | 'confirmed' | 'failed'
 type Confirm = { title?: string; text: string; action: () => Promise<unknown>; ok: string; danger?: boolean }
 
-export default function Admin({ token, state, onBack }: PageProps & { onBack: () => void }) {
+export default function Admin({ token, state, refresh, onBack }: PageProps & { onBack: () => void }) {
   const toast = useToast()
   const root = useRef<HTMLDivElement>(null)
   const [data, setData] = useState<AdminOverview | null>(null)
@@ -28,7 +29,7 @@ export default function Admin({ token, state, onBack }: PageProps & { onBack: ()
   const [filter, setFilter] = useState<Filter>('open')
   const [confirm, setConfirm] = useState<Confirm | null>(null)
   const [playerId, setPlayerId] = useState<number | null>(null)
-  const [announcement, setAnnouncement] = useState('')
+  const [announcing, setAnnouncing] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
   const [resetWord, setResetWord] = useState('')
 
@@ -44,14 +45,6 @@ export default function Admin({ token, state, onBack }: PageProps & { onBack: ()
 
   // bei jeder Spieländerung (state kommt live rein) neu laden
   useEffect(() => { void load() }, [load, state])
-  // Ansage-Feld einmalig mit dem gespeicherten Text füllen
-  const announcementLoaded = useRef(false)
-  useEffect(() => {
-    if (data && !announcementLoaded.current) {
-      setAnnouncement(data.settings.announcement)
-      announcementLoaded.current = true
-    }
-  }, [data])
 
   useGSAP(() => {
     if (data) gsap.from('.adm-section', { y: 16, autoAlpha: 0, stagger: 0.07, clearProps: 'transform,opacity,visibility' })
@@ -147,21 +140,20 @@ export default function Admin({ token, state, onBack }: PageProps & { onBack: ()
 
         <div>
           <p className="font-semibold text-cream-100">Ansage an alle</p>
-          <p className="mb-2 text-xs text-cream-300/70">erscheint oben auf der Startseite (leer = keine)</p>
-          <textarea className="field min-h-20 resize-none text-base" maxLength={200} value={announcement}
-            placeholder="z. B. 20 Uhr Treffpunkt Martinskeller 🍷" onChange={(e) => setAnnouncement(e.target.value)} />
-          <div className="mt-2 flex gap-2">
-            <button className="btn btn-gold flex-1 text-sm" disabled={announcement.trim() === s.announcement}
-              onClick={() => run(() => api.adminUpdateSettings(token, { announcement }), 'Ansage gespeichert 📣')}>
-              Speichern
-            </button>
-            {s.announcement && (
-              <button className="btn btn-ghost text-sm"
-                onClick={() => { setAnnouncement(''); void run(() => api.adminUpdateSettings(token, { announcement: '' }), 'Ansage entfernt') }}>
-                Entfernen
-              </button>
-            )}
-          </div>
+          <p className="mb-2 text-xs text-cream-300/70">
+            Dürfen außer dir: {data.players.filter((p) => p.canAnnounce && !p.isAdmin).map((p) => p.name).join(', ') || 'niemand'}
+          </p>
+          {s.announcement ? (
+            <div className="rounded-2xl bg-ink-950/60 p-3 text-sm">
+              <p className="whitespace-pre-line text-cream-100">{s.announcement}</p>
+              <p className="mt-1 text-xs text-gold-300">— {s.announcementBy || '?'}</p>
+            </div>
+          ) : (
+            <p className="rounded-2xl bg-ink-950/60 p-3 text-sm text-cream-300/60">Gerade keine Ansage.</p>
+          )}
+          <button className="btn btn-gold mt-2 w-full text-sm" onClick={() => setAnnouncing(true)}>
+            📣 Ansage {s.announcement ? 'ändern / entfernen' : 'schreiben'}
+          </button>
         </div>
       </section>
 
@@ -182,6 +174,7 @@ export default function Admin({ token, state, onBack }: PageProps & { onBack: ()
                   <p className="truncate font-semibold text-cream-100">
                     {p.name} {p.isAdmin && <span className="text-xs text-gold-300">Admin</span>}
                     {p.draws.extraLeft > 0 && <span className="ml-1 text-xs text-gold-300">🎁 {p.draws.extraLeft}</span>}
+                    {p.canAnnounce && !p.isAdmin && <span className="ml-1 text-xs" title="darf Ansagen machen">📣</span>}
                   </p>
                   <p className="text-xs text-cream-300/70">
                     heute {p.draws.regularLeft} + {p.draws.bonusLeft} Ersatz + {p.draws.extraLeft} Extra
@@ -321,6 +314,25 @@ export default function Admin({ token, state, onBack }: PageProps & { onBack: ()
             </button>
           </div>
 
+          {!selected.isAdmin && (
+            <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl bg-ink-800 p-3">
+              <div>
+                <p className="font-semibold text-cream-100">📣 Darf Ansagen machen</p>
+                <p className="text-xs text-cream-300/70">Ansage an alle auf der Startseite</p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={selected.canAnnounce}
+                aria-label="Darf Ansagen machen"
+                onClick={() => run(() => api.adminSetAnnouncer(token, selected.id, !selected.canAnnounce),
+                  selected.canAnnounce ? `${selected.name} darf keine Ansagen mehr machen` : `${selected.name} darf jetzt Ansagen machen 📣`)}
+                className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${selected.canAnnounce ? 'bg-ok-500' : 'bg-ink-600'}`}
+              >
+                <span className={`absolute top-1 h-6 w-6 rounded-full bg-cream-100 transition-all ${selected.canAnnounce ? 'left-7' : 'left-1'}`} />
+              </button>
+            </div>
+          )}
+
           <div className="mt-5 grid gap-2.5">
             <button className="btn btn-ghost w-full"
               onClick={() => setConfirm({
@@ -348,6 +360,11 @@ export default function Admin({ token, state, onBack }: PageProps & { onBack: ()
             )}
           </div>
         </Modal>
+      )}
+
+      {announcing && (
+        <AnnounceModal token={token} settings={s} onClose={() => setAnnouncing(false)}
+          onDone={async () => { await refresh(); await load() }} />
       )}
 
       {/* ------------------------------------------------ Reset-Modal */}

@@ -22,6 +22,7 @@ export class GameError extends Error {
 interface PlayerRow {
   id: number; name: string; pin: string; is_admin: number
   draws_reset_at: number; failed_logins: number; locked_until: number | null; extra_draws: number
+  can_announce: number
 }
 interface CardRow {
   id: number; player_id: number; mission_id: number; level: Level; title: string; description: string
@@ -34,7 +35,9 @@ const LOCK_AFTER = 5
 const LOCK_MS = 5 * 60_000
 const iso = (t: number | null) => (t == null ? null : new Date(t).toISOString())
 const viennaDay = (t: number) => new Date(t).toLocaleDateString('sv-SE', { timeZone: 'Europe/Vienna' })
-const toMe = (p: PlayerRow): Me => ({ id: p.id, name: p.name, isAdmin: p.is_admin === 1 })
+const toMe = (p: PlayerRow): Me => ({
+  id: p.id, name: p.name, isAdmin: p.is_admin === 1, canAnnounce: p.is_admin === 1 || p.can_announce === 1,
+})
 
 const CARD_SELECT = `
   SELECT a.*, m.level, m.title, m.description, w.name AS witness_name, pl.name AS player_name
@@ -64,7 +67,16 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
       drawsPerDay: Number(get('draws_per_day') || 2),
       paused: get('paused') === '1',
       announcement: get('announcement'),
+      announcementBy: get('announcement_by'),
+      announcementAt: get('announcement_at') ? new Date(Number(get('announcement_at'))).toISOString() : null,
     }
+  }
+
+  function setAnnouncement(text: string, by: string) {
+    const clean = String(text ?? '').trim().slice(0, 200)
+    q.setSetting.run('announcement', clean)
+    q.setSetting.run('announcement_by', clean ? by : '')
+    q.setSetting.run('announcement_at', clean ? String(Date.now()) : '')
   }
 
   function me(token: string | undefined): PlayerRow {
@@ -279,8 +291,20 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
       })
     },
 
-    adminUpdateSettings(token: string | undefined, patch: Partial<Settings>) {
+    announce(token: string | undefined, text: string) {
+      const p = me(token)
+      if (!toMe(p).canAnnounce) throw new GameError('Du darfst keine Ansagen machen', 403)
+      mutate(() => setAnnouncement(text, p.name))
+    },
+
+    adminSetAnnouncer(token: string | undefined, playerId: number, allowed: boolean) {
       admin(token)
+      if (!q.player.get(playerId)) throw new GameError('Unbekannter Spieler')
+      mutate(() => db.prepare('UPDATE players SET can_announce = ? WHERE id = ?').run(allowed ? 1 : 0, playerId))
+    },
+
+    adminUpdateSettings(token: string | undefined, patch: Partial<Settings>) {
+      const self = admin(token)
       mutate(() => {
         if (patch.drawsPerDay !== undefined) {
           const n = Math.trunc(Number(patch.drawsPerDay))
@@ -288,9 +312,7 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
           q.setSetting.run('draws_per_day', String(n))
         }
         if (patch.paused !== undefined) q.setSetting.run('paused', patch.paused ? '1' : '0')
-        if (patch.announcement !== undefined) {
-          q.setSetting.run('announcement', String(patch.announcement).trim().slice(0, 200))
-        }
+        if (patch.announcement !== undefined) setAnnouncement(patch.announcement, self.name)
       })
     },
 

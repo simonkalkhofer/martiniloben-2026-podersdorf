@@ -41,6 +41,8 @@ export function createHttpApi(base = ''): Api {
     adminReturnCard: (token, cardId) => call('POST', 'admin/return-card', token, { cardId }),
     adminDeletePlayer: (token, playerId) => call('POST', 'admin/delete-player', token, { playerId }),
     adminResetGame: (token) => call('POST', 'admin/reset-game', token, {}),
+    adminSetAnnouncer: (token, playerId, allowed) => call('POST', 'admin/announcer', token, { playerId, allowed }),
+    announce: (token, text) => call('POST', 'announce', token, { text }),
 
     subscribe(cb) {
       // Server-Sent Events: der Server meldet jede Änderung, die App lädt dann neu.
