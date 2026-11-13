@@ -85,6 +85,8 @@ export interface GameState {
 
 export interface AdminPlayer extends Me {
   pin: string
+  /** PIN ist fest im Server hinterlegt und kann nicht neu erzeugt werden */
+  fixedPin: boolean
   draws: Draws
 }
 

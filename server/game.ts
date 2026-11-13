@@ -9,7 +9,10 @@ import type {
   AdminOverview, Card, CardKind, CardStatus, Confirmation, Draws, FailReason, GameState, LeaderRow, Me,
   PlayerPublic, Session, Settings,
 } from '../src/lib/types.ts'
-import type { Level } from '../src/lib/missions.ts'
+import { PLAYER_NAMES, type Level } from '../src/lib/missions.ts'
+
+/** Spieler mit festem PIN (wird bei jedem Serverstart gesetzt, siehe db.ts) */
+const isFixedPin = (name: string) => name === PLAYER_NAMES[0]
 
 export class GameError extends Error {
   status: number
@@ -246,7 +249,7 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
     adminOverview(token: string | undefined): AdminOverview {
       admin(token)
       const players = (db.prepare('SELECT * FROM players ORDER BY id').all() as unknown as PlayerRow[])
-        .map((p) => ({ ...toMe(p), pin: p.pin, draws: draws(p) }))
+        .map((p) => ({ ...toMe(p), pin: p.pin, fixedPin: isFixedPin(p.name), draws: draws(p) }))
       const assignments = (db.prepare(`${CARD_SELECT} ORDER BY a.drawn_at DESC, a.id DESC`).all() as unknown as CardRow[])
         .map((r) => ({
           id: r.id, playerName: r.player_name, title: r.title, level: r.level, kind: r.kind,
@@ -274,7 +277,9 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
 
     adminResetPin(token: string | undefined, playerId: number) {
       admin(token)
-      if (!q.player.get(playerId)) throw new GameError('Unbekannter Spieler')
+      const target = q.player.get(playerId) as PlayerRow | undefined
+      if (!target) throw new GameError('Unbekannter Spieler')
+      if (isFixedPin(target.name)) throw new GameError(`Der PIN von ${target.name} ist fest hinterlegt`)
       const pin = randomPin()
       mutate(() => {
         db.prepare('UPDATE players SET pin = ?, failed_logins = 0, locked_until = NULL WHERE id = ?').run(pin, playerId)

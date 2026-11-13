@@ -54,7 +54,10 @@ Wichtig: nur **eine** Instanz betreiben (SQLite-Datei + Live-Updates im Speicher
 - Extra-Karten verfallen nicht, zählen nicht gegen das Tageslimit und verhalten sich sonst wie reguläre
   Karten (scheitern → +1 Ersatz-Ziehung).
 
-## Admin-Bereich (nur Simon)
+## Admin-Bereich (Simon und Andi)
+
+Admins sind in `ADMINS` (`server/db.ts`) festgelegt und werden bei jedem Start gesetzt. Nur Simon hat den festen PIN (1413);
+Andis PIN ist zufällig und kann neu erzeugt werden. Admins können nicht entfernt werden.
 
 - **Spielsteuerung:** Karten pro Tag (0–10), Ziehen pausieren/erlauben, Ansage an alle (Startseite).
 - **Spieler** (antippen): Extra-Karten geben (+1/+2/+3) oder wegnehmen (−1), Ansage-Recht ein/aus,

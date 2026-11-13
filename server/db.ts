@@ -10,6 +10,8 @@ import { randomInt } from 'node:crypto'
 import { MISSIONS, PLAYER_NAMES } from '../src/lib/missions.ts'
 
 const ADMIN_PIN = '1413'
+/** Spieler mit Admin-Rechten (bei jedem Start gesetzt). Nur der erste hat den festen PIN. */
+export const ADMINS = [PLAYER_NAMES[0], 'Andi']
 /** Spieler, die von Anfang an Ansagen machen dürfen */
 const DEFAULT_ANNOUNCERS = ['Mario', 'Stefan', 'Andi']
 
@@ -93,6 +95,10 @@ export function openDb(dataDir: string): DatabaseSync {
     for (const name of DEFAULT_ANNOUNCERS) allow.run(name)
     db.prepare("INSERT INTO settings (key, value) VALUES ('announcers_seeded', '1')").run()
   }
+
+  // Admin-Rechte genau für die Spieler in ADMINS (bei jedem Start)
+  db.prepare(`UPDATE players SET is_admin = CASE WHEN name IN (${ADMINS.map(() => '?').join(', ')}) THEN 1 ELSE 0 END`)
+    .run(...ADMINS)
 
   // Admin (Simon) hat einen festen PIN – wird bei jedem Start gesetzt.
   // Überschreibbar mit der Umgebungsvariable ADMIN_PIN.

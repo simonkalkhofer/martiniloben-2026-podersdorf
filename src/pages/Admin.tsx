@@ -102,7 +102,9 @@ export default function Admin({ token, state, refresh, onBack }: PageProps & { o
     <div ref={root} className="px-5 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-6">
       <button onClick={onBack} className="text-sm font-semibold text-gold-300">← Zurück</button>
       <h1 className="mt-2 font-display text-3xl font-extrabold text-cream-100">Admin-Bereich</h1>
-      <p className="mt-1 text-sm text-cream-300/80">Nur für dich sichtbar, {state.me.name}.</p>
+      <p className="mt-1 text-sm text-cream-300/80">
+        Nur für Admins sichtbar: {data.players.filter((p) => p.isAdmin).map((p) => p.name).join(' & ')}
+      </p>
 
       {/* ------------------------------------------------ Spielsteuerung */}
       <section className="adm-section card-surface mt-5 space-y-5 p-4">
@@ -339,24 +341,26 @@ export default function Admin({ token, state, refresh, onBack }: PageProps & { o
                 text: `Tageslimit von ${selected.name} zurücksetzen? ${selected.name} bekommt heute wieder ${s.drawsPerDay} reguläre Ziehung${s.drawsPerDay === 1 ? '' : 'en'}.`,
                 action: () => api.adminResetDraws(token, selected.id), ok: `Tageslimit von ${selected.name} zurückgesetzt`,
               })}>🔄 Tageslimit zurücksetzen</button>
-            {selected.isAdmin ? (
-              <p className="rounded-2xl bg-ink-800 p-3 text-center text-xs text-cream-300/70">🔒 Admin-PIN ist fest hinterlegt.</p>
+            {selected.fixedPin ? (
+              <p className="rounded-2xl bg-ink-800 p-3 text-center text-xs text-cream-300/70">🔒 PIN ist fest hinterlegt.</p>
             ) : (
-              <>
-                <button className="btn btn-ghost w-full"
-                  onClick={() => setConfirm({
-                    text: `Neuen PIN für ${selected.name} erzeugen? Der alte PIN funktioniert dann nicht mehr und ${selected.name} wird abgemeldet.`,
-                    action: async () => { await api.adminResetPin(token, selected.id); setShowPins(true) },
-                    ok: `Neuer PIN für ${selected.name} erzeugt`,
-                  })}>🔑 Neuen PIN erzeugen</button>
-                <button className="btn w-full bg-red-800/80 text-cream-100"
-                  onClick={() => setConfirm({
-                    danger: true,
-                    text: `${selected.name} wirklich entfernen? Alle Karten und Punkte von ${selected.name} werden gelöscht. Wartet jemand auf ${selected.name} als Zeugen, kann er einen neuen wählen.`,
-                    action: async () => { await api.adminDeletePlayer(token, selected.id); setPlayerId(null) },
-                    ok: `${selected.name} entfernt`,
-                  })}>🗑 Spieler entfernen</button>
-              </>
+              <button className="btn btn-ghost w-full"
+                onClick={() => setConfirm({
+                  text: `Neuen PIN für ${selected.name} erzeugen? Der alte PIN funktioniert dann nicht mehr und ${selected.name} wird abgemeldet.`,
+                  action: async () => { await api.adminResetPin(token, selected.id); setShowPins(true) },
+                  ok: `Neuer PIN für ${selected.name} erzeugt`,
+                })}>🔑 Neuen PIN erzeugen</button>
+            )}
+            {selected.isAdmin ? (
+              <p className="rounded-2xl bg-ink-800 p-3 text-center text-xs text-cream-300/70">👑 Admins können nicht entfernt werden.</p>
+            ) : (
+              <button className="btn w-full bg-red-800/80 text-cream-100"
+                onClick={() => setConfirm({
+                  danger: true,
+                  text: `${selected.name} wirklich entfernen? Alle Karten und Punkte von ${selected.name} werden gelöscht. Wartet jemand auf ${selected.name} als Zeugen, kann er einen neuen wählen.`,
+                  action: async () => { await api.adminDeletePlayer(token, selected.id); setPlayerId(null) },
+                  ok: `${selected.name} entfernt`,
+                })}>🗑 Spieler entfernen</button>
             )}
           </div>
         </Modal>
