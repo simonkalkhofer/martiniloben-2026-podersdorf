@@ -43,16 +43,26 @@ Wichtig: nur **eine** Instanz betreiben (SQLite-Datei + Live-Updates im Speicher
 
 ## Spielregeln (so umgesetzt)
 
-- 2 reguläre Ziehungen pro Kalendertag (Zeitzone Europe/Vienna), Stufe frei wählbar:
-  Leicht = 1 Punkt, Mittel = 2, Schwer = 3.
+- Standardmäßig 2 reguläre Ziehungen pro Kalendertag (Zeitzone Europe/Vienna, im Admin-Bereich 0–10
+  einstellbar), Stufe frei wählbar: Leicht = 1 Punkt, Mittel = 2, Schwer = 3.
 - Gezogen wird eine zufällige Karte, die **noch niemand** hatte. Erst wenn eine Stufe leer ist,
   kommen Karten, die dieser Spieler selbst noch nie hatte.
 - „Als erledigt melden“ → Zeuge auswählen → der Zeuge bestätigt (Punkte) oder lehnt ab.
 - Gescheitert (aufgegeben oder abgelehnt) = 0 Punkte. Bei einer **regulären** Karte gibt es
   +1 Ersatz-Ziehung, bei einer Ersatz-Karte nicht. Ersatz-Ziehungen verfallen nicht am Tagesende.
-- Sind reguläre und Ersatz-Ziehungen offen, wird zuerst regulär gezogen (die verfallen um Mitternacht).
-- Admin (Simon): PINs ansehen/neu erzeugen, Spieler hinzufügen, Tageslimit pro Spieler oder für alle
-  zurücksetzen, alle Missionen mit Status sehen.
+- Reihenfolge beim Ziehen: regulär (verfällt um Mitternacht) → Ersatz → Extra-Karten vom Admin.
+- Extra-Karten verfallen nicht, zählen nicht gegen das Tageslimit und verhalten sich sonst wie reguläre
+  Karten (scheitern → +1 Ersatz-Ziehung).
+
+## Admin-Bereich (nur Simon)
+
+- **Spielsteuerung:** Karten pro Tag (0–10), Ziehen pausieren/erlauben, Ansage an alle (Startseite).
+- **Spieler** (antippen): Extra-Karten geben (+1/+2/+3) oder wegnehmen (−1), Tageslimit zurücksetzen,
+  neuen PIN erzeugen, Spieler entfernen. Neue Spieler anlegen, PINs anzeigen.
+- **Missionen:** alle Karten mit Status; wartende Bestätigungen stellvertretend bestätigen/ablehnen;
+  laufende Karten zurück in den Stapel legen (Ziehung wird erstattet).
+- **Gefahrenzone:** Spiel komplett zurücksetzen (Bestätigungswort `NEU`): alle Karten zurück und neu
+  gemischt, Punkte auf 0, Extra-Karten weg. Spieler, PINs und Einstellungen bleiben.
 
 ## Sicherheit
 
@@ -69,7 +79,7 @@ Wichtig: nur **eine** Instanz betreiben (SQLite-Datei + Live-Updates im Speicher
 | POST | `/api/login` | `{playerId, pin}` → `{token, player}` |
 | GET | `/api/state` | Rangliste, eigene Karten, Ziehungen, offene Bestätigungen |
 | POST | `/api/draw` · `/api/report` · `/api/give-up` · `/api/resolve` | Spielaktionen |
-| GET/POST | `/api/admin/*` | Übersicht, Spieler anlegen, PIN/Tageslimit zurücksetzen |
+| GET/POST | `/api/admin/*` | `overview`, `players`, `reset-pin`, `reset-draws`, `settings`, `give-extra`, `resolve`, `return-card`, `delete-player`, `reset-game` |
 | GET | `/api/events` | Server-Sent Events bei jeder Änderung |
 
 Authentifizierung: `Authorization: Bearer <token>`.

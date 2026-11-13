@@ -55,7 +55,21 @@ export function openDb(dataDir: string): DatabaseSync {
     );
     CREATE INDEX IF NOT EXISTS assignments_player  ON assignments(player_id);
     CREATE INDEX IF NOT EXISTS assignments_witness ON assignments(witness_id, status);
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key   TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('draws_per_day', '2'), ('paused', '0'), ('announcement', '');
   `)
+
+  // Spalten, die nach der ersten Version dazugekommen sind (bestehende Datenbanken erweitern)
+  const addColumn = (table: string, column: string, ddl: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+    if (!cols.some((c) => c.name === column)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${ddl}`)
+  }
+  addColumn('players', 'extra_draws', 'extra_draws INTEGER NOT NULL DEFAULT 0')
+  addColumn('assignments', 'is_extra', 'is_extra INTEGER NOT NULL DEFAULT 0')
 
   const upsertMission = db.prepare(`
     INSERT INTO missions (id, level, title, description) VALUES (?, ?, ?, ?)

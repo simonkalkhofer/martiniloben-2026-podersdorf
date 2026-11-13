@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { randomPin } from './db.ts'
 import type {
   AdminOverview, Card, CardKind, CardStatus, Confirmation, Draws, FailReason, GameState, LeaderRow, Me,
-  PlayerPublic, Session,
+  PlayerPublic, Session, Settings,
 } from '../src/lib/types.ts'
 import type { Level } from '../src/lib/missions.ts'
 
@@ -21,11 +21,11 @@ export class GameError extends Error {
 
 interface PlayerRow {
   id: number; name: string; pin: string; is_admin: number
-  draws_reset_at: number; failed_logins: number; locked_until: number | null
+  draws_reset_at: number; failed_logins: number; locked_until: number | null; extra_draws: number
 }
 interface CardRow {
   id: number; player_id: number; mission_id: number; level: Level; title: string; description: string
-  kind: CardKind; status: CardStatus; witness_id: number | null; witness_name: string | null
+  kind: CardKind; is_extra: number; status: CardStatus; witness_id: number | null; witness_name: string | null
   fail_reason: FailReason; drawn_at: number; reported_at: number | null; resolved_at: number | null
   player_name: string
 }
@@ -52,7 +52,19 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
       WHERE a.player_id = ? AND a.kind = 'regular' AND a.status = 'failed'
         AND NOT EXISTS (SELECT 1 FROM assignments r WHERE r.replaces_id = a.id)
       ORDER BY a.resolved_at`),
-    regularSince: db.prepare(`SELECT drawn_at FROM assignments WHERE player_id = ? AND kind = 'regular' AND drawn_at >= ?`),
+    regularSince: db.prepare(`
+      SELECT drawn_at FROM assignments WHERE player_id = ? AND kind = 'regular' AND is_extra = 0 AND drawn_at >= ?`),
+    setting: db.prepare('SELECT value FROM settings WHERE key = ?'),
+    setSetting: db.prepare('INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value'),
+  }
+
+  function settings(): Settings {
+    const get = (k: string) => (q.setting.get(k) as { value: string } | undefined)?.value ?? ''
+    return {
+      drawsPerDay: Number(get('draws_per_day') || 2),
+      paused: get('paused') === '1',
+      announcement: get('announcement'),
+    }
   }
 
   function me(token: string | undefined): PlayerRow {
@@ -71,13 +83,17 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
     const since = Math.max(p.draws_reset_at, Date.now() - 2 * 86_400_000)
     const usedToday = (q.regularSince.all(p.id, since) as { drawn_at: number }[])
       .filter((r) => viennaDay(r.drawn_at) === today).length
-    return { regularLeft: Math.max(0, 2 - usedToday), bonusLeft: q.unusedFailed.all(p.id).length }
+    return {
+      regularLeft: Math.max(0, settings().drawsPerDay - usedToday),
+      bonusLeft: q.unusedFailed.all(p.id).length,
+      extraLeft: p.extra_draws,
+    }
   }
 
   function toCard(r: CardRow): Card {
     return {
       id: r.id, missionNo: r.mission_id, level: r.level, title: r.title, description: r.description,
-      kind: r.kind, status: r.status, witnessId: r.witness_id, witnessName: r.witness_name,
+      kind: r.kind, isExtra: r.is_extra === 1, status: r.status, witnessId: r.witness_id, witnessName: r.witness_name,
       failReason: r.fail_reason, drawnAt: iso(r.drawn_at)!, resolvedAt: iso(r.resolved_at),
     }
   }
@@ -146,19 +162,25 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
         id: r.id, playerName: r.player_name, level: r.level, title: r.title,
         description: r.description, reportedAt: iso(r.reported_at)!,
       }))
-      return { me: toMe(p), draws: draws(p), leaderboard, myCards, confirmations }
+      return { me: toMe(p), draws: draws(p), leaderboard, myCards, confirmations, settings: settings() }
     },
 
     drawCard(token: string | undefined, level: number) {
       const p = me(token)
       if (![1, 2, 3].includes(level)) throw new GameError('Ungültige Stufe')
+      if (settings().paused) throw new GameError('Das Ziehen ist gerade pausiert. ⏸️')
       const d = draws(p)
       let kind: CardKind
       let replacesId: number | null = null
+      let isExtra = 0
+      // Reihenfolge: reguläre (verfallen um Mitternacht) → Ersatz → Extra-Karten vom Admin
       if (d.regularLeft > 0) kind = 'regular'
       else if (d.bonusLeft > 0) {
         kind = 'replacement'
         replacesId = (q.unusedFailed.get(p.id) as { id: number }).id
+      } else if (d.extraLeft > 0) {
+        kind = 'regular'
+        isExtra = 1
       } else throw new GameError('Heute keine Ziehungen mehr übrig.')
 
       // 1. Wahl: Karte, die noch niemand hatte – 2. Wahl: Karte, die dieser Spieler noch nie hatte
@@ -172,9 +194,12 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
         ORDER BY random() LIMIT 1`).get(level, p.id)) as { id: number } | undefined
       if (!pick) throw new GameError('In dieser Stufe sind keine Karten mehr übrig.')
 
-      mutate(() => db.prepare(`
-        INSERT INTO assignments (player_id, mission_id, kind, replaces_id, drawn_at) VALUES (?, ?, ?, ?, ?)`)
-        .run(p.id, pick.id, kind, replacesId, Date.now()))
+      mutate(() => {
+        db.prepare(`
+          INSERT INTO assignments (player_id, mission_id, kind, replaces_id, is_extra, drawn_at) VALUES (?, ?, ?, ?, ?, ?)`)
+          .run(p.id, pick.id, kind, replacesId, isExtra, Date.now())
+        if (isExtra) db.prepare('UPDATE players SET extra_draws = extra_draws - 1 WHERE id = ?').run(p.id)
+      })
     },
 
     reportDone(token: string | undefined, cardId: number, witnessId: number) {
@@ -212,7 +237,8 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
         .map((p) => ({ ...toMe(p), pin: p.pin, draws: draws(p) }))
       const assignments = (db.prepare(`${CARD_SELECT} ORDER BY a.drawn_at DESC, a.id DESC`).all() as unknown as CardRow[])
         .map((r) => ({
-          id: r.id, playerName: r.player_name, title: r.title, level: r.level, kind: r.kind, status: r.status,
+          id: r.id, playerName: r.player_name, title: r.title, level: r.level, kind: r.kind,
+          isExtra: r.is_extra === 1, status: r.status,
           witnessName: r.witness_name, failReason: r.fail_reason, drawnAt: iso(r.drawn_at)!, resolvedAt: iso(r.resolved_at),
         }))
       const poolLeft: Record<string, number> = {}
@@ -221,7 +247,7 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
         WHERE NOT EXISTS (SELECT 1 FROM assignments a WHERE a.mission_id = m.id) GROUP BY level`).all() as { level: number; n: number }[]) {
         poolLeft[row.level] = row.n
       }
-      return { players, assignments, poolLeft }
+      return { players, assignments, poolLeft, settings: settings() }
     },
 
     adminAddPlayer(token: string | undefined, rawName: string) {
@@ -250,6 +276,75 @@ export function createGame(db: DatabaseSync, onChange: () => void) {
       mutate(() => {
         if (playerId == null) db.prepare('UPDATE players SET draws_reset_at = ?').run(Date.now())
         else db.prepare('UPDATE players SET draws_reset_at = ? WHERE id = ?').run(Date.now(), playerId)
+      })
+    },
+
+    adminUpdateSettings(token: string | undefined, patch: Partial<Settings>) {
+      admin(token)
+      mutate(() => {
+        if (patch.drawsPerDay !== undefined) {
+          const n = Math.trunc(Number(patch.drawsPerDay))
+          if (!(n >= 0 && n <= 10)) throw new GameError('Ziehungen pro Tag: 0 bis 10')
+          q.setSetting.run('draws_per_day', String(n))
+        }
+        if (patch.paused !== undefined) q.setSetting.run('paused', patch.paused ? '1' : '0')
+        if (patch.announcement !== undefined) {
+          q.setSetting.run('announcement', String(patch.announcement).trim().slice(0, 200))
+        }
+      })
+    },
+
+    adminGiveExtra(token: string | undefined, playerId: number, count: number) {
+      admin(token)
+      const n = Math.trunc(Number(count))
+      if (!n || Math.abs(n) > 10) throw new GameError('Anzahl: -10 bis 10')
+      if (!q.player.get(playerId)) throw new GameError('Unbekannter Spieler')
+      mutate(() => db.prepare('UPDATE players SET extra_draws = MAX(0, extra_draws + ?) WHERE id = ?').run(n, playerId))
+    },
+
+    adminResolve(token: string | undefined, cardId: number, approve: boolean) {
+      admin(token)
+      mutate(() => {
+        const r = db.prepare(`UPDATE assignments SET status = ?, fail_reason = ?, resolved_at = ?
+          WHERE id = ? AND status = 'pending'`)
+          .run(approve ? 'confirmed' : 'failed', approve ? null : 'rejected', Date.now(), cardId)
+        if (!r.changes) throw new GameError('Karte wartet nicht (mehr) auf Bestätigung')
+      })
+    },
+
+    adminReturnCard(token: string | undefined, cardId: number) {
+      admin(token)
+      mutate(() => {
+        const a = db.prepare(`SELECT player_id, is_extra FROM assignments WHERE id = ? AND status IN ('active', 'pending')`)
+          .get(cardId) as { player_id: number; is_extra: number } | undefined
+        if (!a) throw new GameError('Nur laufende Karten können zurückgelegt werden')
+        db.prepare('DELETE FROM assignments WHERE id = ?').run(cardId)
+        // Extra-Karte zurückgeben; eine reguläre Ziehung von heute zählt automatisch nicht mehr
+        if (a.is_extra) db.prepare('UPDATE players SET extra_draws = extra_draws + 1 WHERE id = ?').run(a.player_id)
+      })
+    },
+
+    adminDeletePlayer(token: string | undefined, playerId: number) {
+      const self = admin(token)
+      const p = q.player.get(playerId) as PlayerRow | undefined
+      if (!p) throw new GameError('Unbekannter Spieler')
+      if (p.is_admin || p.id === self.id) throw new GameError('Der Admin kann nicht entfernt werden')
+      mutate(() => {
+        // Wartet jemand auf diesen Zeugen → Karte wieder aktiv, damit ein anderer Zeuge gewählt werden kann
+        db.prepare(`UPDATE assignments SET status = 'active', witness_id = NULL, reported_at = NULL
+          WHERE witness_id = ? AND status = 'pending'`).run(playerId)
+        db.prepare('UPDATE assignments SET witness_id = NULL WHERE witness_id = ?').run(playerId)
+        db.prepare('UPDATE assignments SET replaces_id = NULL WHERE player_id = ?').run(playerId)
+        db.prepare('DELETE FROM assignments WHERE player_id = ?').run(playerId)
+        db.prepare('DELETE FROM players WHERE id = ?').run(playerId)
+      })
+    },
+
+    adminResetGame(token: string | undefined) {
+      admin(token)
+      mutate(() => {
+        db.prepare('DELETE FROM assignments').run()
+        db.prepare('UPDATE players SET extra_draws = 0, draws_reset_at = 0').run()
       })
     },
   }

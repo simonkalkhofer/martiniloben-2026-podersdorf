@@ -32,6 +32,16 @@ export default function Home({ state, onLogout, onAdmin }: PageProps & { onLogou
         <p className="mt-1 text-sm text-cream-200/85">Servus, <strong className="text-gold-300">{state.me.name}</strong>!</p>
       </Hero>
 
+      {state.settings.announcement && (
+        <div className="mx-5 mt-4 flex gap-3 rounded-2xl border border-gold-400/40 bg-gold-400/10 p-4" role="status">
+          <span className="text-2xl leading-none">📣</span>
+          <p className="text-[15px] leading-snug font-medium whitespace-pre-line text-cream-100">{state.settings.announcement}</p>
+        </div>
+      )}
+      {state.settings.paused && (
+        <p className="mx-5 mt-3 rounded-2xl bg-ink-800 px-4 py-3 text-center text-sm text-cream-200">⏸️ Das Ziehen ist gerade pausiert.</p>
+      )}
+
       <div className="flex gap-2 px-5 pt-4">
         {state.me.isAdmin && (
           <button onClick={onAdmin} className="btn btn-wine flex-1 text-sm">⚙️ Admin-Bereich</button>

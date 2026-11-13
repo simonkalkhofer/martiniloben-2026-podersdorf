@@ -19,8 +19,18 @@ export interface Session {
 }
 
 export interface Draws {
+  /** reguläre Ziehungen heute noch übrig */
   regularLeft: number
+  /** Ersatz-Ziehungen für gescheiterte reguläre Karten */
   bonusLeft: number
+  /** vom Admin geschenkte Extra-Karten (verfallen nicht) */
+  extraLeft: number
+}
+
+export interface Settings {
+  drawsPerDay: number
+  paused: boolean
+  announcement: string
 }
 
 export interface LeaderRow {
@@ -41,6 +51,7 @@ export interface Card {
   title: string
   description: string
   kind: CardKind
+  isExtra: boolean
   status: CardStatus
   witnessId: number | null
   witnessName: string | null
@@ -64,6 +75,7 @@ export interface GameState {
   leaderboard: LeaderRow[]
   myCards: Card[]
   confirmations: Confirmation[]
+  settings: Settings
 }
 
 export interface AdminPlayer extends Me {
@@ -77,6 +89,7 @@ export interface AdminAssignment {
   title: string
   level: Level
   kind: CardKind
+  isExtra: boolean
   status: CardStatus
   witnessName: string | null
   failReason: FailReason
@@ -88,6 +101,7 @@ export interface AdminOverview {
   players: AdminPlayer[]
   assignments: AdminAssignment[]
   poolLeft: Record<string, number>
+  settings: Settings
 }
 
 export interface Api {
@@ -103,6 +117,15 @@ export interface Api {
   adminAddPlayer(token: string, name: string): Promise<{ id: number; pin: string }>
   adminResetPin(token: string, playerId: number): Promise<string>
   adminResetDraws(token: string, playerId: number | null): Promise<void>
+  adminUpdateSettings(token: string, patch: Partial<Settings>): Promise<void>
+  /** count darf negativ sein (Extra-Karten wieder wegnehmen) */
+  adminGiveExtra(token: string, playerId: number, count: number): Promise<void>
+  adminResolve(token: string, cardId: number, approve: boolean): Promise<void>
+  /** Aktive/wartende Karte zurück in den Stapel (Ziehung wird erstattet) */
+  adminReturnCard(token: string, cardId: number): Promise<void>
+  adminDeletePlayer(token: string, playerId: number): Promise<void>
+  /** Neues Spiel: alle Karten zurück, Punkte auf 0, Spieler + PINs bleiben */
+  adminResetGame(token: string): Promise<void>
   /** Ruft cb auf, sobald sich irgendwo im Spiel etwas ändert. */
   subscribe(cb: () => void): () => void
 }

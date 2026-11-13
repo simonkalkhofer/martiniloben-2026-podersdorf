@@ -74,6 +74,16 @@ const routes: Record<string, Handler> = {
   'POST /api/admin/players': (t, b) => game.adminAddPlayer(t, String(b.name ?? '')),
   'POST /api/admin/reset-pin': (t, b) => game.adminResetPin(t, num(b.playerId)),
   'POST /api/admin/reset-draws': (t, b) => game.adminResetDraws(t, b.playerId == null ? null : num(b.playerId)),
+  'POST /api/admin/settings': (t, b) => game.adminUpdateSettings(t, {
+    drawsPerDay: b.drawsPerDay === undefined ? undefined : num(b.drawsPerDay),
+    paused: b.paused === undefined ? undefined : b.paused === true,
+    announcement: b.announcement === undefined ? undefined : String(b.announcement),
+  }),
+  'POST /api/admin/give-extra': (t, b) => game.adminGiveExtra(t, num(b.playerId), num(b.count)),
+  'POST /api/admin/resolve': (t, b) => game.adminResolve(t, num(b.cardId), b.approve === true),
+  'POST /api/admin/return-card': (t, b) => game.adminReturnCard(t, num(b.cardId)),
+  'POST /api/admin/delete-player': (t, b) => game.adminDeletePlayer(t, num(b.playerId)),
+  'POST /api/admin/reset-game': (t) => game.adminResetGame(t),
 }
 
 async function handleApi(req: IncomingMessage, res: ServerResponse, path: string) {

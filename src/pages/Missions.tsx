@@ -22,8 +22,9 @@ export default function Missions({ token, state, refresh }: PageProps) {
   const [giveUpCard, setGiveUpCard] = useState<Card | null>(null)
   const [newCardId, setNewCardId] = useState<number | null>(null)
 
-  const { regularLeft, bonusLeft } = state.draws
-  const canDraw = regularLeft + bonusLeft > 0
+  const { regularLeft, bonusLeft, extraLeft } = state.draws
+  const paused = state.settings.paused
+  const canDraw = !paused && regularLeft + bonusLeft + extraLeft > 0
   const active = state.myCards.filter((c) => c.status === 'active' || c.status === 'pending')
   const history = state.myCards.filter((c) => c.status === 'confirmed' || c.status === 'failed')
 
@@ -78,9 +79,18 @@ export default function Missions({ token, state, refresh }: PageProps) {
           Heute noch <strong className="text-xl text-gold-300">{regularLeft}</strong> reguläre Ziehung{regularLeft === 1 ? '' : 'en'}
           {' '}<span className="text-cream-300/80">(+ <strong className="text-gold-300">{bonusLeft}</strong> Ersatz-Ziehung{bonusLeft === 1 ? '' : 'en'})</span> verfügbar
         </p>
-        {regularLeft === 0 && bonusLeft > 0 && (
-          <p className="mt-1 text-xs text-cream-300/70">Die nächste Karte ist eine Ersatz-Karte.</p>
+        {extraLeft > 0 && (
+          <p className="mt-2 rounded-xl bg-gold-400/15 px-3 py-2 text-sm text-gold-300">
+            🎁 Du hast {extraLeft} Extra-Karte{extraLeft === 1 ? '' : 'n'} vom Admin bekommen!
+          </p>
         )}
+        {paused ? (
+          <p className="mt-2 rounded-xl bg-ink-700 px-3 py-2 text-sm text-cream-200">⏸️ Das Ziehen ist gerade pausiert.</p>
+        ) : regularLeft === 0 && bonusLeft > 0 ? (
+          <p className="mt-1 text-xs text-cream-300/70">Die nächste Karte ist eine Ersatz-Karte.</p>
+        ) : regularLeft === 0 && bonusLeft === 0 && extraLeft > 0 ? (
+          <p className="mt-1 text-xs text-cream-300/70">Die nächste Karte ist eine Extra-Karte.</p>
+        ) : null}
 
         <div className="mt-4 grid grid-cols-3 gap-2.5">
           {([1, 2, 3] as Level[]).map((l) => (
@@ -95,7 +105,7 @@ export default function Missions({ token, state, refresh }: PageProps) {
             </button>
           ))}
         </div>
-        {!canDraw && <p className="mt-3 text-center text-xs text-cream-300/70">Für heute ist der Stapel leer – morgen geht’s weiter! 🍷</p>}
+        {!canDraw && !paused && <p className="mt-3 text-center text-xs text-cream-300/70">Für heute ist der Stapel leer – morgen geht’s weiter! 🍷</p>}
       </div>
 
       <h2 className="mt-7 mb-3 font-display text-xl font-semibold text-cream-100">Aktive Karten ({active.length})</h2>
@@ -108,8 +118,8 @@ export default function Missions({ token, state, refresh }: PageProps) {
             <span className="card-shine pointer-events-none absolute inset-y-0 w-1/2 -skew-x-12 bg-white/15" style={{ transform: 'translateX(-200%)' }} />
             <div className="flex items-center justify-between text-xs font-semibold">
               <span className="rounded-full bg-black/25 px-2.5 py-1">{LEVELS[c.level].label} · {c.level} Pkt.</span>
-              <span className={`rounded-full px-2.5 py-1 ${c.kind === 'replacement' ? 'bg-cream-100 text-wine-900' : 'bg-black/25'}`}>
-                {c.kind === 'replacement' ? 'Ersatz-Karte' : 'Reguläre Karte'}
+              <span className={`rounded-full px-2.5 py-1 ${c.kind === 'replacement' || c.isExtra ? 'bg-cream-100 text-wine-900' : 'bg-black/25'}`}>
+                {c.kind === 'replacement' ? 'Ersatz-Karte' : c.isExtra ? '🎁 Extra-Karte' : 'Reguläre Karte'}
               </span>
             </div>
             <h3 className="mt-3 font-display text-2xl leading-tight font-extrabold text-cream-100">{c.title}</h3>
@@ -143,6 +153,7 @@ export default function Missions({ token, state, refresh }: PageProps) {
                       ? `bestätigt von ${c.witnessName}`
                       : c.failReason === 'rejected' ? `abgelehnt von ${c.witnessName}` : 'aufgegeben'}
                     {c.kind === 'replacement' && ' · Ersatz-Karte'}
+                    {c.isExtra && ' · Extra-Karte'}
                   </span>
                 </span>
                 <span className="font-display font-bold text-gold-300">{c.status === 'confirmed' ? `+${c.level}` : '0'}</span>
