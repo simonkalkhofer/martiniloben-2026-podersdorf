@@ -12,8 +12,13 @@ import { createGame, GameError } from './game.ts'
 
 const PORT = Number(process.env.PORT ?? 8787)
 const ROOT = resolve(import.meta.dirname, '..')
-const DATA_DIR = resolve(process.env.DATA_DIR ?? join(ROOT, 'data'))
+// Railway setzt RAILWAY_VOLUME_MOUNT_PATH automatisch, sobald ein Volume angehängt ist
+const DATA_DIR = resolve(process.env.DATA_DIR ?? process.env.RAILWAY_VOLUME_MOUNT_PATH ?? join(ROOT, 'data'))
 const DIST = join(ROOT, 'dist')
+
+if (process.env.RAILWAY_ENVIRONMENT && !process.env.RAILWAY_VOLUME_MOUNT_PATH && !process.env.DATA_DIR) {
+  console.warn('ACHTUNG: Kein Railway-Volume angehängt – der Spielstand geht beim nächsten Deploy verloren!')
+}
 
 // ------------------------------------------------------------ Live-Updates
 const clients = new Set<ServerResponse>()
@@ -24,7 +29,8 @@ function broadcast() {
 }
 setInterval(() => { for (const res of clients) res.write(': ping\n\n') }, 25_000).unref()
 
-const game = createGame(openDb(DATA_DIR), broadcast)
+const db = openDb(DATA_DIR)
+const game = createGame(db, broadcast)
 
 // ---------------------------------------------------------------- Helfer
 function send(res: ServerResponse, status: number, body: unknown) {
@@ -55,6 +61,7 @@ const num = (v: unknown) => Number(v)
 // ------------------------------------------------------------------- API
 type Handler = (token: string | undefined, body: Record<string, unknown>) => unknown
 const routes: Record<string, Handler> = {
+  'GET /api/health': () => ({ ok: true }),
   'GET /api/players': () => game.listPlayers(),
   'POST /api/login': (_, b) => game.login(num(b.playerId), String(b.pin ?? '')),
   'POST /api/logout': (t) => game.logout(t),
@@ -119,7 +126,7 @@ async function serveStatic(res: ServerResponse, path: string) {
   }
 }
 
-createServer((req, res) => {
+const server = createServer((req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.setHeader('Referrer-Policy', 'no-referrer')
   const path = new URL(req.url ?? '/', 'http://x').pathname
@@ -128,3 +135,15 @@ createServer((req, res) => {
 }).listen(PORT, () => {
   console.log(`Martiniloben-Server läuft auf http://localhost:${PORT}  (Daten: ${DATA_DIR})`)
 })
+
+// Sauber beenden (Railway schickt SIGTERM bei jedem neuen Deploy)
+function shutdown() {
+  for (const res of clients) res.end()
+  server.close(() => {
+    db.close()
+    process.exit(0)
+  })
+  setTimeout(() => process.exit(0), 5_000).unref()
+}
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)

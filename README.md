@@ -28,6 +28,19 @@ Voraussetzung: Node.js ≥ 22.18. Alternativ per Docker (`Dockerfile` liegt bei,
 **Wichtig:** Die Datenbank ist eine Datei. Der Hoster muss sie dauerhaft speichern (persistentes
 Volume/Disk), sonst ist der Spielstand nach einem Neustart weg. Sicherung = Datei kopieren.
 
+## Hosting auf Railway
+
+1. Railway → *New Project* → *Deploy from GitHub repo* → `simonkalkhofer/martiniloben-2026-podersdorf`.
+   Railway baut per `Dockerfile` (Einstellungen in `railway.json`: 1 Instanz, Healthcheck `/api/health`).
+2. Im Service: **Volume anlegen**, Mount-Pfad `/data`. Ohne Volume ist der Spielstand nach jedem Deploy weg
+   (der Server warnt dann im Log). Der Server nutzt `RAILWAY_VOLUME_MOUNT_PATH` automatisch.
+3. *Settings → Networking → Generate Domain* → das ist der Link für die Handys.
+4. Admin-PIN von Simon steht beim ersten Start in den **Deploy-Logs** („Erster Start: Admin-PIN …“).
+   Danach alle PINs im Admin-Bereich.
+5. Jeder Push auf `main` deployt automatisch neu; der Spielstand bleibt im Volume erhalten.
+
+Wichtig: nur **eine** Instanz betreiben (SQLite-Datei + Live-Updates im Speicher).
+
 ## Spielregeln (so umgesetzt)
 
 - 2 reguläre Ziehungen pro Kalendertag (Zeitzone Europe/Vienna), Stufe frei wählbar:
