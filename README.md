@@ -12,8 +12,8 @@ npm run dev
 ```
 
 Startet API-Server (Port 8787) und Vite (Port 5173) zusammen. Beim **ersten Start** legt der Server
-die Datenbank `data/martiniloben.sqlite` an und schreibt den Admin-PIN von Simon in die Konsole.
-Alle anderen PINs stehen danach im Admin-Bereich der App.
+die Datenbank `data/martiniloben.sqlite` mit zufälligen PINs an. Simons Admin-PIN ist fest **1413**
+(Variable `ADMIN_PIN` überschreibt ihn). Alle anderen PINs stehen im Admin-Bereich der App.
 
 ## Betrieb
 
@@ -22,7 +22,7 @@ npm run build      # baut die App nach dist/
 npm start          # startet den Server: App + API auf PORT (Standard 8787)
 ```
 
-Umgebungsvariablen: `PORT` (Standard 8787), `DATA_DIR` (Ordner für die Datenbank, Standard `./data`).
+Umgebungsvariablen: `PORT` (Standard 8787), `DATA_DIR` (Ordner für die Datenbank, Standard `./data`), `ADMIN_PIN` (Standard 1413).
 Voraussetzung: Node.js ≥ 22.18. Alternativ per Docker (`Dockerfile` liegt bei, Datenbank im Volume `/data`).
 
 **Wichtig:** Die Datenbank ist eine Datei. Der Hoster muss sie dauerhaft speichern (persistentes
@@ -35,7 +35,7 @@ Volume/Disk), sonst ist der Spielstand nach einem Neustart weg. Sicherung = Date
 2. Im Service: **Volume anlegen**, Mount-Pfad `/data`. Ohne Volume ist der Spielstand nach jedem Deploy weg
    (der Server warnt dann im Log). Der Server nutzt `RAILWAY_VOLUME_MOUNT_PATH` automatisch.
 3. *Settings → Networking → Generate Domain* → das ist der Link für die Handys.
-4. Admin-PIN von Simon steht beim ersten Start in den **Deploy-Logs** („Erster Start: Admin-PIN …“).
+4. Simons Admin-PIN ist fest **1413** (änderbar über die Railway-Variable `ADMIN_PIN`).
    Danach alle PINs im Admin-Bereich.
 5. Jeder Push auf `main` deployt automatisch neu; der Spielstand bleibt im Volume erhalten.
 

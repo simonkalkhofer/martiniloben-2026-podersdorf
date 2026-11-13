@@ -108,15 +108,20 @@ export default function Admin({ token, state, onBack }: PageProps & { onBack: ()
                   <code className="w-14 rounded-lg bg-ink-950 py-1 text-center font-mono text-lg font-bold tracking-widest text-gold-300">
                     {showPins ? p.pin : '••••'}
                   </code>
-                  <button
-                    title="PIN neu erzeugen"
-                    className="grid h-10 w-10 place-items-center rounded-xl bg-ink-700"
-                    onClick={() => setConfirm({
-                      text: `Neuen PIN für ${p.name} erzeugen? Der alte PIN funktioniert dann nicht mehr und ${p.name} wird abgemeldet.`,
-                      action: () => api.adminResetPin(token, p.id),
-                      ok: `Neuer PIN für ${p.name} erzeugt`,
-                    })}
-                  >🔑</button>
+                  {p.isAdmin ? (
+                    // Admin-PIN ist fest im Server hinterlegt
+                    <span title="Fester PIN" className="grid h-10 w-10 place-items-center rounded-xl bg-ink-800 opacity-50">🔒</span>
+                  ) : (
+                    <button
+                      title="PIN neu erzeugen"
+                      className="grid h-10 w-10 place-items-center rounded-xl bg-ink-700"
+                      onClick={() => setConfirm({
+                        text: `Neuen PIN für ${p.name} erzeugen? Der alte PIN funktioniert dann nicht mehr und ${p.name} wird abgemeldet.`,
+                        action: () => api.adminResetPin(token, p.id),
+                        ok: `Neuer PIN für ${p.name} erzeugt`,
+                      })}
+                    >🔑</button>
+                  )}
                   <button
                     title="Tageslimit zurücksetzen"
                     className="grid h-10 w-10 place-items-center rounded-xl bg-ink-700"

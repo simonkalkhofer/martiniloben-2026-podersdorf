@@ -14,7 +14,7 @@ Sprache: Deutsch. Details zu Betrieb, Regeln, API und Struktur: `README.md`.
 ## Regeln für Änderungen
 - Spiellogik nur in `server/game.ts`. Das Frontend rechnet nichts selbst.
 - Missionen in `src/lib/missions.ts` ändern; der Server aktualisiert sie beim nächsten Start.
-- Keine PINs ins Repo: `data/` ist ignoriert, PINs entstehen beim ersten Start zufällig.
+- PINs: `data/` ist ignoriert, Spieler-PINs entstehen beim ersten Start zufällig. Ausnahme: Simons Admin-PIN ist fest 1413 (`server/db.ts`, überschreibbar per `ADMIN_PIN`), wird bei jedem Start gesetzt.
 - `vite` ist exakt auf 8.3.5 gepinnt (Windows Smart App Control blockierte die rolldown-Binärdatei einer neueren Version).
 - Fixed-Elemente (Modals) per Portal rendern; GSAP-Übergänge auf Containern mit `clearProps` beenden.
 

@@ -9,7 +9,9 @@ import { join } from 'node:path'
 import { randomInt } from 'node:crypto'
 import { MISSIONS, PLAYER_NAMES } from '../src/lib/missions.ts'
 
-export const randomPin = () => String(randomInt(0, 10000)).padStart(4, '0')
+const ADMIN_PIN = '1413'
+
+export const randomPin =() => String(randomInt(0, 10000)).padStart(4, '0')
 
 export function openDb(dataDir: string): DatabaseSync {
   mkdirSync(dataDir, { recursive: true })
@@ -63,11 +65,13 @@ export function openDb(dataDir: string): DatabaseSync {
   const { n } = db.prepare('SELECT COUNT(*) AS n FROM players').get() as { n: number }
   if (n === 0) {
     const insert = db.prepare('INSERT INTO players (name, pin, is_admin) VALUES (?, ?, ?)')
-    PLAYER_NAMES.forEach((name, i) => {
-      const pin = randomPin()
-      insert.run(name, pin, i === 0 ? 1 : 0)
-      if (i === 0) console.log(`\n  Erster Start: Admin-PIN für ${name} = ${pin}\n  (alle PINs danach im Admin-Bereich der App)\n`)
-    })
+    PLAYER_NAMES.forEach((name, i) => insert.run(name, randomPin(), i === 0 ? 1 : 0))
   }
+
+  // Admin (Simon) hat einen festen PIN – wird bei jedem Start gesetzt.
+  // Überschreibbar mit der Umgebungsvariable ADMIN_PIN.
+  const adminPin = /^\d{4}$/.test(process.env.ADMIN_PIN ?? '') ? process.env.ADMIN_PIN! : ADMIN_PIN
+  db.prepare('UPDATE players SET pin = ?, failed_logins = 0, locked_until = NULL WHERE name = ?')
+    .run(adminPin, PLAYER_NAMES[0])
   return db
 }
